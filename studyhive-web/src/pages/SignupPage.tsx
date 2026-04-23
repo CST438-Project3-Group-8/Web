@@ -1,6 +1,8 @@
-import "../App.css";
+type SignupPageProps = {
+    onShowLogin: () => void;
+};
 
-function SignupPage() {
+function SignupPage({ onShowLogin }: SignupPageProps) {
     return (
         <div className="auth-page">
             <div className="auth-card">
@@ -9,11 +11,13 @@ function SignupPage() {
                     <h1 className="brand-name">StudyHive</h1>
                 </div>
 
-                <h2 className="auth-title">Create account</h2>
+                <h2 className="auth-title">Create Account</h2>
 
                 <p className="auth-subtitle">
                     Already have an account?{" "}
-                    <span className="auth-link">Sign in</span>
+                    <button className="auth-link-button" type="button" onClick={onShowLogin}>
+                        Sign In
+                    </button>
                 </p>
 
                 <div className="social-buttons">
@@ -37,14 +41,14 @@ function SignupPage() {
                     <input
                         id="fullName"
                         type="text"
-                        placeholder="Bhavishya Patel"
+                        placeholder="John Smith"
                     />
                 </div>
 
                 <div className="form-group">
-                    <label htmlFor="email">Email address</label>
+                    <label htmlFor="signupEmail">Email address</label>
                     <input
-                        id="email"
+                        id="signupEmail"
                         type="email"
                         placeholder="student@university.edu"
                     />
