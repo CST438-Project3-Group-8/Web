@@ -1,16 +1,42 @@
-import { useState } from "react";
-import "./App.css";
-import LoginPage from "./pages/LoginPage";
-import SignupPage from "./pages/SignupPage";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import DashboardPage from './pages/DashboardPage';
+import FindGroupsPage from './pages/FindGroupsPage';
+import MyGroupsPage from './pages/MyGroupsPage';
+import CreateGroupPage from './pages/CreateGroupPage';
+import GroupDetailPage from './pages/GroupDetailPage';
+import './App.css';
 
-function App() {
-    const [currentPage, setCurrentPage] = useState<"login" | "signup">("login");
+export default function App() {
+    return (
+        <BrowserRouter>
+            <AuthProvider>
+                <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignupPage />} />
 
-    return currentPage === "login" ? (
-        <LoginPage onShowSignup={() => setCurrentPage("signup")} />
-    ) : (
-        <SignupPage onShowLogin={() => setCurrentPage("login")} />
+                    <Route path="/dashboard" element={
+                        <ProtectedRoute><DashboardPage /></ProtectedRoute>
+                    } />
+                    <Route path="/groups" element={
+                        <ProtectedRoute><FindGroupsPage /></ProtectedRoute>
+                    } />
+                    <Route path="/my-groups" element={
+                        <ProtectedRoute><MyGroupsPage /></ProtectedRoute>
+                    } />
+                    <Route path="/groups/new" element={
+                        <ProtectedRoute><CreateGroupPage /></ProtectedRoute>
+                    } />
+                    <Route path="/groups/:id" element={
+                        <ProtectedRoute><GroupDetailPage /></ProtectedRoute>
+                    } />
+
+                    <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+            </AuthProvider>
+        </BrowserRouter>
     );
 }
-
-export default App;
