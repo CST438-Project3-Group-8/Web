@@ -8,6 +8,7 @@ export default function LoginPage() {
     const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -18,23 +19,22 @@ export default function LoginPage() {
 
     const handleEmailLogin = async () => {
         setError('');
-        if (!email) {
-            setError('Please enter your email.');
+        if (!email || !password) {
+            setError('Please enter your email and password.');
             return;
         }
 
         setLoading(true);
-        // Magic link — no password needed, Supabase emails a login link
-        const { error: otpError } = await supabase.auth.signInWithOtp({
+        const { error: loginError } = await supabase.auth.signInWithPassword({
             email,
-            options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+            password,
         });
         setLoading(false);
 
-        if (otpError) {
-            setError(otpError.message);
+        if (loginError) {
+            setError(loginError.message);
         } else {
-            setError('Check your email for a login link.');
+            navigate('/dashboard', { replace: true });
         }
     };
 
@@ -71,11 +71,11 @@ export default function LoginPage() {
 
                 {error && (
                     <p style={{
-                        color: error.startsWith('Check') ? '#16a34a' : '#dc2626',
+                        color: '#dc2626',
                         fontSize: '0.95rem',
                         marginBottom: 16,
                         padding: '12px 16px',
-                        background: error.startsWith('Check') ? '#f0fdf4' : '#fef2f2',
+                        background: '#fef2f2',
                         borderRadius: 12,
                     }}>
                         {error}
@@ -90,6 +90,17 @@ export default function LoginPage() {
                         placeholder="student@university.edu"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label htmlFor="password">Password</label>
+                    <input
+                        id="password"
+                        type="password"
+                        placeholder="Your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleEmailLogin(); }}
                     />
                 </div>
@@ -101,7 +112,7 @@ export default function LoginPage() {
                     disabled={loading}
                     style={{ opacity: loading ? 0.7 : 1 }}
                 >
-                    {loading ? 'Sending link...' : 'Continue with Email'}
+                    {loading ? 'Signing in...' : 'Sign In'}
                 </button>
             </div>
         </div>
