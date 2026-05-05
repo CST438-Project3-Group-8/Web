@@ -1,8 +1,16 @@
-type LoginPageProps = {
-    onShowSignup: () => void;
-};
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-function LoginPage({ onShowSignup }: LoginPageProps) {
+export default function LoginPage() {
+    const { signInWithGoogle, signInWithGitHub, session } = useAuth();
+    const navigate = useNavigate();
+
+    // Already logged in — bounce to dashboard
+    if (session) {
+        navigate('/dashboard', { replace: true });
+        return null;
+    }
+
     return (
         <div className="auth-page">
             <div className="auth-card">
@@ -14,19 +22,17 @@ function LoginPage({ onShowSignup }: LoginPageProps) {
                 <h2 className="auth-title">Welcome Back!</h2>
 
                 <p className="auth-subtitle">
-                    New to StudyHive?{" "}
-                    <button className="auth-link-button" type="button" onClick={onShowSignup}>
-                        Create an Account
-                    </button>
+                    New to StudyHive?{' '}
+                    <Link to="/signup" className="auth-link">Create an Account</Link>
                 </p>
 
                 <div className="social-buttons">
-                    <button className="social-button" type="button">
+                    <button className="social-button" type="button" onClick={signInWithGoogle}>
                         <span className="social-icon google">G</span>
                         <span>Sign in with Google</span>
                     </button>
 
-                    <button className="social-button" type="button">
+                    <button className="social-button" type="button" onClick={signInWithGitHub}>
                         <span className="social-icon github">⌘</span>
                         <span>Sign in with GitHub</span>
                     </button>
@@ -52,5 +58,3 @@ function LoginPage({ onShowSignup }: LoginPageProps) {
         </div>
     );
 }
-
-export default LoginPage;
