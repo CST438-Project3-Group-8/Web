@@ -1,0 +1,269 @@
+.create-group-page {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    background: #f4f7fb;
+    color: #1e293b;
+}
+
+.create-group-sidebar {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 28px 20px;
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 36px;
+}
+
+.sidebar-logo {
+    width: 36px;
+    height: 36px;
+    background: #2563eb;
+    border-radius: 10px;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sidebar-link {
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 14px;
+    color: #334155;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.sidebar-link-active {
+    background: #eef4ff;
+    color: #2563eb;
+    font-weight: 700;
+}
+
+.sidebar-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 32px;
+}
+
+.profile-avatar {
+    width: 40px;
+    height: 40px;
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+
+.profile-name {
+    font-weight: 700;
+}
+
+.profile-subtext {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.create-group-content {
+    padding: 48px 56px;
+}
+
+.create-group-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.back-button {
+    width: 42px;
+    height: 42px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 1.15rem;
+}
+
+.create-group-header h1 {
+    margin: 0;
+    font-size: 2.2rem;
+    font-weight: 800;
+}
+
+.create-group-header p {
+    margin: 8px 0 0;
+    color: #64748b;
+}
+
+.create-group-form {
+    max-width: 860px;
+}
+
+.form-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.form-card h2 {
+    margin: 0 0 24px;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 22px;
+}
+
+.form-group label {
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    border: 1px solid #d8e1ee;
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 16px 18px;
+    font-size: 1rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.course-dropdown-group {
+    position: relative;
+}
+
+.course-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d8e1ee;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+    z-index: 10;
+}
+
+.dropdown-item {
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    border: none;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.98rem;
+}
+
+.dropdown-item:hover {
+    background: #f1f5f9;
+}
+
+.dropdown-item.muted {
+    color: #64748b;
+    cursor: default;
+}
+
+.meeting-mode-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.meeting-mode-button {
+    border: 1px solid #d8e1ee;
+    background: #fff;
+    padding: 15px 16px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-weight: 700;
+    color: #475569;
+}
+
+.meeting-mode-button-active {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: #eff6ff;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 8px;
+}
+
+.secondary-button,
+.primary-button {
+    border: none;
+    border-radius: 16px;
+    padding: 14px 24px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.secondary-button {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.primary-button {
+    background: #2563eb;
+    color: #fff;
+}
+
+@media (max-width: 980px) {
+    .create-group-page {
+        grid-template-columns: 1fr;
+    }
+
+    .create-group-sidebar {
+        display: none;
+    }
+
+    .create-group-content {
+        padding: 24px 16px 40px;
+    }
+
+    .form-row,
+    .meeting-mode-row {
+        grid-template-columns: 1fr;
+    }
+}
