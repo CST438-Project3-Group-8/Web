@@ -17,17 +17,19 @@ export interface UpdateProfilePayload {
     major: string;
 }
 
+export type BackendOAuthProvider = 'GOOGLE' | 'GITHUB' | 'EMAIL';
+
+export interface BootstrapProfilePayload {
+    oauthProvider?: BackendOAuthProvider;
+}
+
 export async function getMyProfile(): Promise<UserProfile> {
     const response = await apiClient.get<UserProfile>('/api/user/me');
     return response.data;
 }
 
 // Optional idempotent upsert for flows that want to create or refresh profile data eagerly.
-export async function createProfile(payload?: {
-    name: string;
-    email: string;
-    oauthProvider: string;
-}): Promise<UserProfile> {
+export async function createProfile(payload?: BootstrapProfilePayload): Promise<UserProfile> {
     const response = payload === undefined
         ? await apiClient.post<UserProfile>('/api/user')
         : await apiClient.post<UserProfile>('/api/user', payload);
