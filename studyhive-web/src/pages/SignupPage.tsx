@@ -1,21 +1,29 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 export default function SignupPage() {
-    const { signInWithGoogle, signInWithGitHub, session } = useAuth();
-    const navigate = useNavigate();
-
+    const { signInWithGoogle, signInWithGitHub, session, loading: authLoading, bootstrapError } = useAuth();
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    if (session) {
-        navigate('/dashboard', { replace: true });
-        return null;
+    if (session && authLoading) {
+        return (
+            <div className="auth-page">
+                <div className="auth-card">
+                    <h2 className="auth-title">Finishing sign-in...</h2>
+                    <p className="auth-subtitle">We are setting up your StudyHive account.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (session && !bootstrapError) {
+        return <Navigate to="/dashboard" replace />;
     }
 
     const handleEmailSignup = async () => {
@@ -30,7 +38,7 @@ export default function SignupPage() {
             return;
         }
 
-        setLoading(true);
+        setSubmitting(true);
         const { error: signUpError } = await supabase.auth.signUp({
             email,
             password,
@@ -38,11 +46,11 @@ export default function SignupPage() {
                 data: { full_name: fullName },
             },
         });
-        setLoading(false);
-
         if (signUpError) {
+            setSubmitting(false);
             setError(signUpError.message);
         } else {
+            setSubmitting(false);
             // Supabase sends a confirmation email by default.
             // If email confirmation is disabled in your Supabase project,
             // the session is set immediately and AuthContext redirects automatically.
@@ -81,16 +89,16 @@ export default function SignupPage() {
                     <span>Or create an account with email</span>
                 </div>
 
-                {error && (
+                {(bootstrapError || error) && (
                     <p style={{
-                        color: error.startsWith('Check') ? '#16a34a' : '#dc2626',
+                        color: (bootstrapError || error).startsWith('Check') ? '#16a34a' : '#dc2626',
                         fontSize: '0.95rem',
                         marginBottom: 16,
                         padding: '12px 16px',
-                        background: error.startsWith('Check') ? '#f0fdf4' : '#fef2f2',
+                        background: (bootstrapError || error).startsWith('Check') ? '#f0fdf4' : '#fef2f2',
                         borderRadius: 12,
                     }}>
-                        {error}
+                        {bootstrapError || error}
                     </p>
                 )}
 
@@ -132,10 +140,10 @@ export default function SignupPage() {
                     className="primary-button"
                     type="button"
                     onClick={handleEmailSignup}
-                    disabled={loading}
-                    style={{ opacity: loading ? 0.7 : 1 }}
+                    disabled={submitting || authLoading}
+                    style={{ opacity: submitting || authLoading ? 0.7 : 1 }}
                 >
-                    {loading ? 'Creating account...' : 'Create Account'}
+                    {submitting ? 'Creating account...' : 'Create Account'}
                 </button>
             </div>
         </div>

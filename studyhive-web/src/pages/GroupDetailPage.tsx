@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
+import { GroupDetailPageSkeleton } from '../components/PageSkeletons';
 import { useAuth } from '../contexts/AuthContext';
 import { getCourses } from '../api/coursesApi';
 import { deleteGroup, getGroupById } from '../api/groupsApi';
@@ -183,6 +184,10 @@ export default function GroupDetailPage() {
         }
     };
 
+    if (loading) {
+        return <GroupDetailPageSkeleton />;
+    }
+
     return (
         <AppLayout>
             <div style={{ maxWidth: 980, margin: '0 auto' }}>
@@ -190,9 +195,7 @@ export default function GroupDetailPage() {
                     Back to Groups
                 </button>
 
-                {loading ? (
-                    <p style={{ color: '#94A3B8' }}>Loading group...</p>
-                ) : error || !group ? (
+                {error || !group ? (
                     <div style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', borderRadius: 12, padding: '14px 16px' }}>
                         {error || 'This group could not be found.'}
                     </div>

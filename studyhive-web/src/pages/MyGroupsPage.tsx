@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
+import { GroupsGridPageSkeleton } from '../components/PageSkeletons';
 import { useAuth } from '../contexts/AuthContext';
 import { getCourses } from '../api/coursesApi';
 import { getGroups } from '../api/groupsApi';
@@ -55,6 +56,10 @@ export default function MyGroupsPage() {
 
     const courseMap = Object.fromEntries(courses.map((course) => [course.id, course.code]));
 
+    if (loading) {
+        return <GroupsGridPageSkeleton />;
+    }
+
     return (
         <AppLayout>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -74,9 +79,7 @@ export default function MyGroupsPage() {
             )}
 
             <div style={{ marginTop: 24 }}>
-                {loading ? (
-                    <p style={{ color: '#94A3B8' }}>Loading your groups...</p>
-                ) : groups.length === 0 ? (
+                {groups.length === 0 ? (
                     <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E2E8F0', padding: 48, textAlign: 'center', color: '#64748B' }}>
                         <p style={{ fontSize: '1.1rem', marginBottom: 8 }}>You have not created any groups yet.</p>
                         <p style={{ marginBottom: 20 }}>Create a group or browse existing ones to join.</p>

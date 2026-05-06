@@ -1,20 +1,29 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 export default function LoginPage() {
-    const { signInWithGoogle, signInWithGitHub, session } = useAuth();
-    const navigate = useNavigate();
+    const { signInWithGoogle, signInWithGitHub, session, loading: authLoading, bootstrapError } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    if (session) {
-        navigate('/dashboard', { replace: true });
-        return null;
+    if (session && authLoading) {
+        return (
+            <div className="auth-page">
+                <div className="auth-card">
+                    <h2 className="auth-title">Finishing sign-in...</h2>
+                    <p className="auth-subtitle">We are setting up your StudyHive account.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (session && !bootstrapError) {
+        return <Navigate to="/dashboard" replace />;
     }
 
     const handleEmailLogin = async () => {
@@ -24,17 +33,14 @@ export default function LoginPage() {
             return;
         }
 
-        setLoading(true);
+        setSubmitting(true);
         const { error: loginError } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
-        setLoading(false);
-
         if (loginError) {
+            setSubmitting(false);
             setError(loginError.message);
-        } else {
-            navigate('/dashboard', { replace: true });
         }
     };
 
@@ -69,7 +75,7 @@ export default function LoginPage() {
                     <span>Or continue with email</span>
                 </div>
 
-                {error && (
+                {(bootstrapError || error) && (
                     <p style={{
                         color: '#dc2626',
                         fontSize: '0.95rem',
@@ -78,7 +84,7 @@ export default function LoginPage() {
                         background: '#fef2f2',
                         borderRadius: 12,
                     }}>
-                        {error}
+                        {bootstrapError || error}
                     </p>
                 )}
 
@@ -109,10 +115,10 @@ export default function LoginPage() {
                     className="primary-button"
                     type="button"
                     onClick={handleEmailLogin}
-                    disabled={loading}
-                    style={{ opacity: loading ? 0.7 : 1 }}
+                    disabled={submitting || authLoading}
+                    style={{ opacity: submitting || authLoading ? 0.7 : 1 }}
                 >
-                    {loading ? 'Signing in...' : 'Sign In'}
+                    {submitting ? 'Signing in...' : 'Sign In'}
                 </button>
             </div>
         </div>
