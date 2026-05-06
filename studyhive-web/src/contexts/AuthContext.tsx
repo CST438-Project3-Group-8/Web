@@ -33,6 +33,19 @@ function logAuthDebug(message: string, details?: Record<string, unknown>) {
     console.log(`[Auth bootstrap] ${message}`, details ?? {});
 }
 
+function decodeJwtPayload(token: string) {
+    try {
+        const [, payload] = token.split('.');
+        if (!payload) return null;
+
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        return JSON.parse(window.atob(padded)) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
@@ -46,7 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             for (let attempt = 0; attempt <= BOOTSTRAP_RETRY_DELAYS_MS.length; attempt += 1) {
                 try {
-                    logAuthDebug('Calling POST /api/user bootstrap', { attempt: attempt + 1 });
+                    logAuthDebug('Calling POST /api/user bootstrap', {
+                        attempt: attempt + 1,
+                        requestBody: null,
+                    });
                     await createProfile();
                     logAuthDebug('POST /api/user bootstrap succeeded', { attempt: attempt + 1 });
                     return;
@@ -72,11 +88,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         async function bootstrapAuthenticatedUser(activeSession: Session | null) {
+            const tokenPayload = activeSession?.access_token
+                ? decodeJwtPayload(activeSession.access_token)
+                : null;
+
             logAuthDebug('Received auth state change', {
                 hasSession: !!activeSession,
                 userId: activeSession?.user?.id ?? null,
                 email: activeSession?.user?.email ?? null,
                 provider: activeSession?.user?.app_metadata?.provider ?? null,
+                userMetadata: activeSession?.user?.user_metadata ?? null,
+                appMetadata: activeSession?.user?.app_metadata ?? null,
+                tokenClaims: tokenPayload
+                    ? {
+                        sub: tokenPayload.sub ?? null,
+                        email: tokenPayload.email ?? null,
+                        provider: tokenPayload.provider ?? null,
+                        appMetadataProvider:
+                            typeof tokenPayload.app_metadata === 'object' && tokenPayload.app_metadata !== null
+                                ? (tokenPayload.app_metadata as { provider?: unknown }).provider ?? null
+                                : null,
+                        iss: tokenPayload.iss ?? null,
+                        aud: tokenPayload.aud ?? null,
+                        exp: tokenPayload.exp ?? null,
+                    }
+                    : null,
             });
 
             setSession(activeSession);
