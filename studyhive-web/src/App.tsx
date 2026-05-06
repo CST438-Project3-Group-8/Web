@@ -8,6 +8,7 @@ import FindGroupsPage from './pages/FindGroupsPage';
 import MyGroupsPage from './pages/MyGroupsPage';
 import CreateGroupPage from './pages/CreateGroupPage';
 import GroupDetailPage from './pages/GroupDetailPage';
+import ProfilePage from './pages/ProfilePage';
 import './App.css';
 
 export default function App() {
@@ -35,6 +36,9 @@ export default function App() {
                     } />
 
                     <Route path="*" element={<Navigate to="/login" replace />} />
+                    <Route path="/profile" element={
+                        <ProtectedRoute><ProfilePage /></ProtectedRoute>
+                    } />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
+
 export default function AppLayout({ children }: { children: ReactNode }) {
     const { user, signOut } = useAuth();
     const navigate = useNavigate();
@@ -48,7 +49,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     </div>
                     <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
-                        <p style={{ fontSize: 11, color: '#64748B', margin: 0 }}>View Profile</p>
+                        <button
+                            onClick={() => navigate('/profile')}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                        >
+                            <p style={{ fontSize: 11, color: '#2563EB', margin: 0, fontWeight: 500 }}>View Profile</p>
+                        </button>
+
                     </div>
                 </div>
             </aside>
