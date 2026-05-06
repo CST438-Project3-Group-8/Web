@@ -53,7 +53,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                             onClick={() => navigate('/profile')}
                             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
                         >
-                            <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
                             <p style={{ fontSize: 11, color: '#2563EB', margin: 0, fontWeight: 500 }}>View Profile</p>
                         </button>
 
