@@ -1,31 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import { apiClient } from '../lib/apiClient';
-import type { StudyGroup, Course } from '../types';
+import { getCourses } from '../api/coursesApi';
+import { getGroups } from '../api/groupsApi';
+import { getApiErrorMessage } from '../lib/apiErrors';
+import type { Course, StudyGroup } from '../types';
 
 export default function FindGroupsPage() {
     const navigate = useNavigate();
     const [groups, setGroups] = useState<StudyGroup[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [activeFilter, setActiveFilter] = useState('All');
 
     useEffect(() => {
-        Promise.all([
-            apiClient.get<StudyGroup[]>('/api/groups').then(r => r.data).catch(() => []),
-            apiClient.get<Course[]>('/api/courses').then(r => r.data).catch(() => []),
-        ]).then(([g, c]) => { setGroups(g); setCourses(c); setLoading(false); });
+        Promise.all([getGroups(), getCourses()])
+            .then(([loadedGroups, loadedCourses]) => {
+                setGroups(loadedGroups);
+                setCourses(loadedCourses);
+                setLoading(false);
+            })
+            .catch((caughtError) => {
+                setError(getApiErrorMessage(caughtError, 'Unable to load groups right now.'));
+                setLoading(false);
+            });
     }, []);
 
-    const courseMap = Object.fromEntries(courses.map(c => [c.id, c.code]));
-
+    const courseMap = Object.fromEntries(courses.map((course) => [course.id, course.code]));
     const modeFilters = ['All', 'Online', 'In-Person', 'Hybrid'];
 
-    const filtered = groups.filter(g => {
-        const matchSearch = !search || g.title.toLowerCase().includes(search.toLowerCase()) || g.description?.toLowerCase().includes(search.toLowerCase());
-        const matchFilter = activeFilter === 'All' || g.meetingMode === activeFilter;
+    const filtered = groups.filter((group) => {
+        const title = group.title || '';
+        const description = group.description || '';
+        const matchSearch = !search || title.toLowerCase().includes(search.toLowerCase()) || description.toLowerCase().includes(search.toLowerCase());
+        const matchFilter = activeFilter === 'All' || group.meetingMode === activeFilter;
         return matchSearch && matchFilter;
     });
 
@@ -41,36 +51,44 @@ export default function FindGroupsPage() {
                 </button>
             </div>
 
-            {/* Search + filters */}
+            {error && (
+                <div style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', borderRadius: 12, padding: '12px 14px', marginBottom: 24 }}>
+                    {error}
+                </div>
+            )}
+
             <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ flex: 1, minWidth: 240, display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #E2E8F0', borderRadius: 10, padding: '9px 14px', gap: 8 }}>
-                    <span style={{ color: '#94A3B8' }}>🔍</span>
+                    <span style={{ color: '#94A3B8' }}>Search</span>
                     <input
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search by course code, topic, or group name..."
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search by topic or group name..."
                         style={{ border: 'none', outline: 'none', fontSize: 14, color: '#0F172A', width: '100%', background: 'transparent' }}
                     />
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {modeFilters.map(f => (
+                    {modeFilters.map((filter) => (
                         <button
-                            key={f}
-                            onClick={() => setActiveFilter(f)}
+                            key={filter}
+                            onClick={() => setActiveFilter(filter)}
                             style={{
-                                padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                                background: activeFilter === f ? '#2563EB' : '#fff',
-                                color: activeFilter === f ? '#fff' : '#475569',
-                                border: activeFilter === f ? 'none' : '1px solid #E2E8F0',
-                            } as React.CSSProperties}
+                                padding: '7px 16px',
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                fontSize: 13,
+                                fontWeight: 600,
+                                background: activeFilter === filter ? '#2563EB' : '#fff',
+                                color: activeFilter === filter ? '#fff' : '#475569',
+                                border: activeFilter === filter ? '1px solid #2563EB' : '1px solid #E2E8F0',
+                            }}
                         >
-                            {f}
+                            {filter}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Groups grid */}
             {loading ? (
                 <p style={{ color: '#94A3B8' }}>Loading groups...</p>
             ) : filtered.length === 0 ? (
@@ -80,8 +98,13 @@ export default function FindGroupsPage() {
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-                    {filtered.map(g => (
-                        <BrowseGroupCard key={g.id} group={g} courseCode={courseMap[g.courseId] ?? `Course ${g.courseId}`} onView={() => navigate(`/groups/${g.id}`)} />
+                    {filtered.map((group) => (
+                        <BrowseGroupCard
+                            key={group.id}
+                            group={group}
+                            courseCode={group.courseId ? courseMap[group.courseId] ?? `Course ${group.courseId}` : 'Course TBD'}
+                            onView={() => navigate(`/groups/${group.id}`)}
+                        />
                     ))}
                 </div>
             )}
@@ -91,37 +114,33 @@ export default function FindGroupsPage() {
 
 function BrowseGroupCard({ group, courseCode, onView }: { group: StudyGroup; courseCode: string; onView: () => void }) {
     const modeStyles: Record<string, { bg: string; color: string }> = {
-        'Online': { bg: '#DCFCE7', color: '#16A34A' },
-        'In-Person': { bg: '#DCFCE7', color: '#16A34A' },
-        'Hybrid': { bg: '#FEF3C7', color: '#D97706' },
+        Online: { bg: '#DCFCE7', color: '#16A34A' },
+        'In-Person': { bg: '#DBEAFE', color: '#1D4ED8' },
+        Hybrid: { bg: '#FEF3C7', color: '#D97706' },
     };
-    const mode = group.meetingMode || 'In-Person';
-    const ms = modeStyles[mode] ?? { bg: '#F1F5F9', color: '#475569' };
+    const mode = group.meetingMode || 'Unspecified';
+    const modeStyle = modeStyles[mode] ?? { bg: '#F1F5F9', color: '#475569' };
 
     return (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E2E8F0', padding: 20, display: 'flex', flexDirection: 'column', gap: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, background: '#EFF6FF', color: '#1D4ED8', borderRadius: 6, padding: '3px 8px' }}>{courseCode}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, background: ms.bg, color: ms.color, borderRadius: 6, padding: '3px 8px' }}>{mode}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, background: modeStyle.bg, color: modeStyle.color, borderRadius: 6, padding: '3px 8px' }}>{mode}</span>
             </div>
-            <h3 style={{ fontWeight: 700, color: '#0F172A', margin: '0 0 8px', fontSize: '1rem' }}>{group.title}</h3>
+            <h3 style={{ fontWeight: 700, color: '#0F172A', margin: '0 0 8px', fontSize: '1rem' }}>{group.title || 'Untitled group'}</h3>
             <p style={{ fontSize: 13, color: '#64748B', margin: '0 0 12px', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                {group.description}
+                {group.description || 'No description yet.'}
             </p>
             {group.location && (
-                <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    📍 {group.location}
+                <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 4px' }}>
+                    {group.location}
                 </p>
             )}
-            <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                👥 ? / {group.maxMembers} members
+            <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 16px' }}>
+                {group.maxMembers ? `${group.maxMembers} maximum members` : 'Open-ended membership'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F1F5F9', paddingTop: 14, marginTop: 'auto' }}>
-                <div style={{ display: 'flex' }}>
-                    {['#93C5FD', '#C4B5FD', '#FCA5A5'].map((c, i) => (
-                        <div key={i} style={{ width: 24, height: 24, borderRadius: '50%', background: c, border: '2px solid #fff', marginLeft: i > 0 ? -8 : 0 }} />
-                    ))}
-                </div>
+                <span style={{ fontSize: 12, color: '#64748B' }}>{group.creatorId ? 'Hosted by a StudyHive member' : 'Creator pending'}</span>
                 <button
                     onClick={onView}
                     style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8, padding: '7px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#334155' }}
