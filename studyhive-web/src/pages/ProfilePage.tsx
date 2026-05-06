@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import AppLayout from '../components/AppLayout';
+import { ProfilePageSkeleton } from '../components/PageSkeletons';
 import { useAuth } from '../contexts/AuthContext';
 import {
     getMyProfile,
@@ -51,23 +53,51 @@ export default function ProfilePage() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     useEffect(() => {
-        Promise.all([getMyProfile(), getMyCourses(), getCourses()])
-            .then(([prof, enrolled, all]) => {
+        let active = true;
+
+        async function loadProfilePage() {
+            try {
+                const [prof, enrolled, allCoursesResult] = await Promise.all([
+                    getMyProfile(),
+                    getMyCourses(),
+                    getCourses().catch((err) => {
+                        if (axios.isAxiosError(err) && err.response?.status === 401) {
+                            throw err;
+                        }
+
+                        return [];
+                    }),
+                ]);
+
+                if (!active) return;
+
                 setProfile(prof);
                 setName(prof.name ?? '');
                 setMajor(prof.major ?? '');
                 setBio(prof.bio ?? '');
                 setMyCourses(enrolled);
-                setAllCourses(all);
-                setLoading(false);
-            })
-            .catch((err) => {
+                setAllCourses(allCoursesResult);
+                setLoadError(null);
+            } catch (err) {
+                if (!active) return;
+
                 setLoadError(getApiErrorMessage(err, 'Failed to load profile.'));
-                setLoading(false);
-            });
+            } finally {
+                if (active) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        loadProfilePage();
+
+        return () => {
+            active = false;
+        };
     }, []);
 
-    const initials = name
+    const displayName = profile?.name?.trim() || profile?.email?.split('@')[0] || 'New user';
+    const initials = displayName
         .split(' ')
         .filter(Boolean)
         .map((p) => p[0])
@@ -166,11 +196,7 @@ export default function ProfilePage() {
 
 
     if (loading) {
-        return (
-            <AppLayout>
-                <p style={{ color: '#94A3B8', padding: 32 }}>Loading profile...</p>
-            </AppLayout>
-        );
+        return <ProfilePageSkeleton />;
     }
 
     if (loadError) {
@@ -204,7 +230,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                             <div style={{ fontSize: 26, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>
-                                {profile?.name}
+                                {displayName}
                             </div>
                             <div style={{ fontSize: 16, fontWeight: 600, color: '#64748B', marginBottom: profile?.bio ? 10 : 0 }}>
                                 {profile?.major || 'No major set'}

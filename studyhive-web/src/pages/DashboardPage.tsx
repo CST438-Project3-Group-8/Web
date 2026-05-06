@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
+import { DashboardPageSkeleton } from '../components/PageSkeletons';
 import { useAuth } from '../contexts/AuthContext';
 import { getCourses } from '../api/coursesApi';
 import { getGroups } from '../api/groupsApi';
@@ -68,6 +69,10 @@ export default function DashboardPage() {
     const ownedGroups = groups.filter((group) => group.creatorId === user?.id);
     const upcomingSessions = sessions.slice(0, 4);
 
+    if (loading) {
+        return <DashboardPageSkeleton />;
+    }
+
     return (
         <AppLayout>
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E2E8F0', padding: '24px 28px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
@@ -76,7 +81,7 @@ export default function DashboardPage() {
                         Welcome back, {displayName}!
                     </h1>
                     <p style={{ color: '#64748B', margin: 0 }}>
-                        You have {loading ? '...' : upcomingSessions.length} study sessions coming up across your groups.
+                        You have {upcomingSessions.length} study sessions coming up across your groups.
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
@@ -96,17 +101,15 @@ export default function DashboardPage() {
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
-                <StatCard emoji="Groups" label="Owned Groups" value={loading ? '...' : String(ownedGroups.length)} bg="#DBEAFE" />
-                <StatCard emoji="Sessions" label="Upcoming Sessions" value={loading ? '...' : String(upcomingSessions.length)} bg="#FEF3C7" />
-                <StatCard emoji="Courses" label="Courses Available" value={loading ? '...' : String(courses.length)} bg="#DCFCE7" />
+                <StatCard emoji="Groups" label="Owned Groups" value={String(ownedGroups.length)} bg="#DBEAFE" />
+                <StatCard emoji="Sessions" label="Upcoming Sessions" value={String(upcomingSessions.length)} bg="#FEF3C7" />
+                <StatCard emoji="Courses" label="Courses Available" value={String(courses.length)} bg="#DCFCE7" />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, marginBottom: 28 }}>
                 <div>
                     <SectionHeader title="Upcoming Sessions" action="View My Groups" onAction={() => navigate('/my-groups')} />
-                    {loading ? (
-                        <p style={{ color: '#94A3B8' }}>Loading sessions...</p>
-                    ) : upcomingSessions.length === 0 ? (
+                    {upcomingSessions.length === 0 ? (
                         <EmptyState message="No upcoming sessions yet." onAction={() => navigate('/groups')} actionLabel="Browse Groups" />
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -155,9 +158,7 @@ export default function DashboardPage() {
 
             <div>
                 <SectionHeader title="Your Study Groups" action="View All" onAction={() => navigate('/my-groups')} />
-                {loading ? (
-                    <p style={{ color: '#94A3B8' }}>Loading groups...</p>
-                ) : ownedGroups.length === 0 ? (
+                {ownedGroups.length === 0 ? (
                     <EmptyState message="You have not created any groups yet." onAction={() => navigate('/groups/new')} actionLabel="Create Group" />
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>

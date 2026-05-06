@@ -22,12 +22,15 @@ export async function getMyProfile(): Promise<UserProfile> {
     return response.data;
 }
 
-export async function createProfile(payload: {
+// Optional idempotent upsert for flows that want to create or refresh profile data eagerly.
+export async function createProfile(payload?: {
     name: string;
     email: string;
     oauthProvider: string;
 }): Promise<UserProfile> {
-    const response = await apiClient.post<UserProfile>('/api/user', payload);
+    const response = payload === undefined
+        ? await apiClient.post<UserProfile>('/api/user')
+        : await apiClient.post<UserProfile>('/api/user', payload);
     return response.data;
 }
 

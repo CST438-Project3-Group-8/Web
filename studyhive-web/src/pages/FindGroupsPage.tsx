@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
+import { GroupsGridPageSkeleton } from '../components/PageSkeletons';
 import { getCourses } from '../api/coursesApi';
 import { getGroups } from '../api/groupsApi';
 import { getApiErrorMessage } from '../lib/apiErrors';
@@ -38,6 +39,10 @@ export default function FindGroupsPage() {
         const matchFilter = activeFilter === 'All' || group.meetingMode === activeFilter;
         return matchSearch && matchFilter;
     });
+
+    if (loading) {
+        return <GroupsGridPageSkeleton />;
+    }
 
     return (
         <AppLayout>
@@ -89,9 +94,7 @@ export default function FindGroupsPage() {
                 </div>
             </div>
 
-            {loading ? (
-                <p style={{ color: '#94A3B8' }}>Loading groups...</p>
-            ) : filtered.length === 0 ? (
+            {filtered.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748B' }}>
                     <p style={{ fontSize: '1.1rem', marginBottom: 8 }}>No groups found.</p>
                     <p>Try adjusting your search or filters.</p>
