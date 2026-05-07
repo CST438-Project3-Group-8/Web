@@ -5,7 +5,7 @@ import AppLayout from '../components/AppLayout';
 import { GroupDetailPageSkeleton } from '../components/PageSkeletons';
 import { useAuth } from '../contexts/AuthContext';
 import { getCourses } from '../api/coursesApi';
-import { deleteGroup, getGroupById } from '../api/groupsApi';
+import { deleteGroup, getGroupById, getGroupMembership, joinGroup, leaveGroup } from '../api/groupsApi';
 import { createSession, deleteSession, getSessionsByGroup, updateSession } from '../api/sessionsApi';
 import { getApiErrorMessage } from '../lib/apiErrors';
 import { formatDateOnly, formatDateTime, fromDateTimeLocalValue, toDateTimeLocalValue } from '../lib/dateTime';
@@ -46,6 +46,10 @@ export default function GroupDetailPage() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [deletingGroup, setDeletingGroup] = useState(false);
 
+    const [joined, setJoined] = useState(false);
+    const [membershipLoading, setMembershipLoading] = useState(false);
+    const [membershipError, setMembershipError] = useState<string | null>(null);
+
     useEffect(() => {
         if (!Number.isFinite(groupId)) {
             setError('That group link is invalid.');
@@ -55,20 +59,28 @@ export default function GroupDetailPage() {
 
         let active = true;
 
+        setLoading(true);
+        setError(null);
+        setMembershipError(null);
+
         Promise.all([
             getGroupById(groupId),
             getCourses().catch(() => []),
             getSessionsByGroup(groupId),
+            getGroupMembership(groupId).catch(() => ({ groupId, joined: false })),
         ])
-            .then(([loadedGroup, loadedCourses, loadedSessions]) => {
+            .then(([loadedGroup, loadedCourses, loadedSessions, membership]) => {
                 if (!active) return;
+
                 setGroup(loadedGroup);
                 setCourses(loadedCourses);
                 setSessions(loadedSessions);
+                setJoined(membership.joined);
                 setLoading(false);
             })
             .catch((caughtError) => {
                 if (!active) return;
+
                 setError(getApiErrorMessage(caughtError, 'Unable to load this group right now.'));
                 setLoading(false);
             });
@@ -79,11 +91,38 @@ export default function GroupDetailPage() {
     }, [groupId]);
 
     const isOwner = !!user?.id && user.id === group?.creatorId;
+
     const courseCode = useMemo(() => {
         if (!group?.courseId) return 'Course TBD';
         const match = courses.find((course) => course.id === group.courseId);
         return match ? match.code : `Course ${group.courseId}`;
     }, [courses, group?.courseId]);
+
+    const handleToggleMembership = async () => {
+        if (!group) return;
+
+        setMembershipLoading(true);
+        setMembershipError(null);
+
+        try {
+            if (joined) {
+                await leaveGroup(group.id);
+                setJoined(false);
+            } else {
+                await joinGroup(group.id);
+                setJoined(true);
+            }
+        } catch (caughtError) {
+            setMembershipError(
+                getApiErrorMessage(
+                    caughtError,
+                    joined ? 'Unable to leave this group.' : 'Unable to join this group.'
+                )
+            );
+        } finally {
+            setMembershipLoading(false);
+        }
+    };
 
     const handleSessionSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -128,8 +167,10 @@ export default function GroupDetailPage() {
                 const next = editingSessionId
                     ? current.map((session) => (session.id === editingSessionId ? saved : session))
                     : [...current, saved];
+
                 return next.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
             });
+
             setForm(EMPTY_SESSION_FORM);
             setEditingSessionId(null);
         } catch (caughtError) {
@@ -159,6 +200,7 @@ export default function GroupDetailPage() {
         try {
             await deleteSession(sessionId);
             setSessions((current) => current.filter((session) => session.id !== sessionId));
+
             if (editingSessionId === sessionId) {
                 setEditingSessionId(null);
                 setForm(EMPTY_SESSION_FORM);
@@ -170,6 +212,7 @@ export default function GroupDetailPage() {
 
     const handleDeleteGroup = async () => {
         if (!group) return;
+
         const confirmed = window.confirm(`Delete "${group.title || 'this group'}"?`);
         if (!confirmed) return;
 
@@ -191,37 +234,133 @@ export default function GroupDetailPage() {
     return (
         <AppLayout>
             <div style={{ maxWidth: 980, margin: '0 auto' }}>
-                <button onClick={() => navigate('/groups')} style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', marginBottom: 24, fontWeight: 600 }}>
+                <button
+                    onClick={() => navigate('/groups')}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563EB',
+                        cursor: 'pointer',
+                        marginBottom: 24,
+                        fontWeight: 600,
+                    }}
+                >
                     Back to Groups
                 </button>
 
                 {error || !group ? (
-                    <div style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', borderRadius: 12, padding: '14px 16px' }}>
+                    <div
+                        style={{
+                            background: '#FEF2F2',
+                            color: '#991B1B',
+                            border: '1px solid #FECACA',
+                            borderRadius: 12,
+                            padding: '14px 16px',
+                        }}
+                    >
                         {error || 'This group could not be found.'}
                     </div>
                 ) : (
                     <>
-                        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #E2E8F0', padding: 28, marginBottom: 24 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                        <div
+                            style={{
+                                background: '#fff',
+                                borderRadius: 18,
+                                border: '1px solid #E2E8F0',
+                                padding: 28,
+                                marginBottom: 24,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    gap: 20,
+                                    alignItems: 'flex-start',
+                                    flexWrap: 'wrap',
+                                }}
+                            >
                                 <div>
                                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
                                         <span style={tagStyle('#EFF6FF', '#1D4ED8')}>{courseCode}</span>
-                                        <span style={tagStyle('#F1F5F9', '#475569')}>{group.meetingMode || 'Unspecified'}</span>
+                                        <span style={tagStyle('#F1F5F9', '#475569')}>
+                                            {group.meetingMode || 'Unspecified'}
+                                        </span>
                                         {isOwner && <span style={tagStyle('#DCFCE7', '#166534')}>You own this group</span>}
+                                        {!isOwner && joined && (
+                                            <span style={tagStyle('#DCFCE7', '#166534')}>Joined</span>
+                                        )}
                                     </div>
-                                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#0F172A', margin: '0 0 10px' }}>{group.title || 'Untitled group'}</h1>
-                                    <p style={{ color: '#64748B', margin: '0 0 18px', lineHeight: 1.6, maxWidth: 720 }}>{group.description || 'No description yet.'}</p>
+
+                                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#0F172A', margin: '0 0 10px' }}>
+                                        {group.title || 'Untitled group'}
+                                    </h1>
+
+                                    <p style={{ color: '#64748B', margin: '0 0 18px', lineHeight: 1.6, maxWidth: 720 }}>
+                                        {group.description || 'No description yet.'}
+                                    </p>
+
                                     <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', color: '#475569', fontSize: 14 }}>
                                         <span>{group.location || 'Location TBD'}</span>
                                         <span>{group.maxMembers ? `${group.maxMembers} maximum members` : 'No member limit set'}</span>
                                         <span>Created {formatDateOnly(group.createdAt)}</span>
                                     </div>
+
+                                    {membershipError && (
+                                        <div
+                                            style={{
+                                                background: '#FEF2F2',
+                                                color: '#991B1B',
+                                                border: '1px solid #FECACA',
+                                                borderRadius: 12,
+                                                padding: '12px 14px',
+                                                marginTop: 16,
+                                            }}
+                                        >
+                                            {membershipError}
+                                        </div>
+                                    )}
                                 </div>
-                                {isOwner && (
-                                    <button onClick={handleDeleteGroup} disabled={deletingGroup} style={{ background: '#fff', color: '#B91C1C', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', fontWeight: 700, cursor: 'pointer' }}>
-                                        {deletingGroup ? 'Deleting...' : 'Delete Group'}
-                                    </button>
-                                )}
+
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                    {!isOwner && (
+                                        <button
+                                            onClick={handleToggleMembership}
+                                            disabled={membershipLoading}
+                                            style={{
+                                                background: joined ? '#fff' : '#2563EB',
+                                                color: joined ? '#334155' : '#fff',
+                                                border: joined ? '1px solid #CBD5E1' : 'none',
+                                                borderRadius: 10,
+                                                padding: '10px 16px',
+                                                fontWeight: 700,
+                                                cursor: membershipLoading ? 'not-allowed' : 'pointer',
+                                                opacity: membershipLoading ? 0.7 : 1,
+                                            }}
+                                        >
+                                            {membershipLoading ? 'Saving...' : joined ? 'Leave Group' : 'Join Group'}
+                                        </button>
+                                    )}
+
+                                    {isOwner && (
+                                        <button
+                                            onClick={handleDeleteGroup}
+                                            disabled={deletingGroup}
+                                            style={{
+                                                background: '#fff',
+                                                color: '#B91C1C',
+                                                border: '1px solid #FECACA',
+                                                borderRadius: 10,
+                                                padding: '10px 14px',
+                                                fontWeight: 700,
+                                                cursor: deletingGroup ? 'not-allowed' : 'pointer',
+                                                opacity: deletingGroup ? 0.7 : 1,
+                                            }}
+                                        >
+                                            {deletingGroup ? 'Deleting...' : 'Delete Group'}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -240,18 +379,46 @@ export default function GroupDetailPage() {
                                     <div style={{ display: 'grid', gap: 14 }}>
                                         {sessions.map((session) => (
                                             <div key={session.id} style={{ border: '1px solid #E2E8F0', borderRadius: 14, padding: 18 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                                <div
+                                                    style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        gap: 16,
+                                                        alignItems: 'flex-start',
+                                                        flexWrap: 'wrap',
+                                                    }}
+                                                >
                                                     <div>
                                                         <h3 style={{ margin: '0 0 6px', color: '#0F172A' }}>{session.title}</h3>
-                                                        <p style={{ margin: '0 0 6px', color: '#475569', fontSize: 14 }}>{formatDateTime(session.scheduledAt)}</p>
-                                                        <p style={{ margin: '0 0 8px', color: '#64748B', fontSize: 14 }}>{session.location || 'Location TBD'}</p>
-                                                        {session.topic && <p style={{ margin: '0 0 6px', color: '#334155', fontSize: 14 }}>Topic: {session.topic}</p>}
-                                                        {session.notes && <p style={{ margin: 0, color: '#64748B', fontSize: 14, lineHeight: 1.5 }}>{session.notes}</p>}
+                                                        <p style={{ margin: '0 0 6px', color: '#475569', fontSize: 14 }}>
+                                                            {formatDateTime(session.scheduledAt)}
+                                                        </p>
+                                                        <p style={{ margin: '0 0 8px', color: '#64748B', fontSize: 14 }}>
+                                                            {session.location || 'Location TBD'}
+                                                        </p>
+                                                        {session.topic && (
+                                                            <p style={{ margin: '0 0 6px', color: '#334155', fontSize: 14 }}>
+                                                                Topic: {session.topic}
+                                                            </p>
+                                                        )}
+                                                        {session.notes && (
+                                                            <p style={{ margin: 0, color: '#64748B', fontSize: 14, lineHeight: 1.5 }}>
+                                                                {session.notes}
+                                                            </p>
+                                                        )}
                                                     </div>
+
                                                     {isOwner && (
                                                         <div style={{ display: 'flex', gap: 10 }}>
-                                                            <button onClick={() => handleEditSession(session)} style={secondaryButtonStyle}>Edit</button>
-                                                            <button onClick={() => handleDeleteSession(session.id)} style={{ ...secondaryButtonStyle, color: '#B91C1C', borderColor: '#FECACA' }}>Delete</button>
+                                                            <button onClick={() => handleEditSession(session)} style={secondaryButtonStyle}>
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteSession(session.id)}
+                                                                style={{ ...secondaryButtonStyle, color: '#B91C1C', borderColor: '#FECACA' }}
+                                                            >
+                                                                Delete
+                                                            </button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -265,6 +432,7 @@ export default function GroupDetailPage() {
                                 <h2 style={{ margin: '0 0 8px', fontSize: '1.2rem', color: '#0F172A' }}>
                                     {editingSessionId ? 'Edit Session' : 'Create Session'}
                                 </h2>
+
                                 <p style={{ margin: '0 0 18px', color: '#64748B', lineHeight: 1.5 }}>
                                     {isOwner
                                         ? 'Session creation is enabled because you own this group.'
@@ -272,7 +440,16 @@ export default function GroupDetailPage() {
                                 </p>
 
                                 {submitError && (
-                                    <div style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+                                    <div
+                                        style={{
+                                            background: '#FEF2F2',
+                                            color: '#991B1B',
+                                            border: '1px solid #FECACA',
+                                            borderRadius: 12,
+                                            padding: '12px 14px',
+                                            marginBottom: 16,
+                                        }}
+                                    >
                                         {submitError}
                                     </div>
                                 )}
@@ -341,11 +518,24 @@ export default function GroupDetailPage() {
 
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 6 }}>
                                         {editingSessionId && (
-                                            <button type="button" onClick={() => { setEditingSessionId(null); setForm(EMPTY_SESSION_FORM); setSubmitError(null); }} style={secondaryButtonStyle}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditingSessionId(null);
+                                                    setForm(EMPTY_SESSION_FORM);
+                                                    setSubmitError(null);
+                                                }}
+                                                style={secondaryButtonStyle}
+                                            >
                                                 Cancel edit
                                             </button>
                                         )}
-                                        <button type="submit" disabled={!isOwner || submitting} style={{ ...primaryButtonStyle, opacity: !isOwner || submitting ? 0.7 : 1 }}>
+
+                                        <button
+                                            type="submit"
+                                            disabled={!isOwner || submitting}
+                                            style={{ ...primaryButtonStyle, opacity: !isOwner || submitting ? 0.7 : 1 }}
+                                        >
                                             {submitting ? 'Saving...' : editingSessionId ? 'Save Session' : 'Create Session'}
                                         </button>
                                     </div>

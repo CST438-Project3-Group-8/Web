@@ -46,3 +46,14 @@ export interface CreateOrUpdateSessionPayload {
     notes?: string;
     durationMinutes?: number | null;
 }
+export interface GroupMembershipStatus {
+    groupId: number;
+    joined: boolean;
+}
+
+export interface GroupMember {
+    id: number;
+    groupId: number;
+    userId: string;
+    joinedAt: string;
+}
