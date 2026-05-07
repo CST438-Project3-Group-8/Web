@@ -59,6 +59,7 @@ function clearPendingProvider() {
 function normalizeProvider(raw: unknown): 'google' | 'github' | 'email' | null {
     if (typeof raw !== 'string') return null;
     const normalized = raw.trim().toLowerCase();
+
     if (normalized === 'google' || normalized === 'github' || normalized === 'email') {
         return normalized;
     }
@@ -89,6 +90,7 @@ function resolveBootstrapProvider(activeSession: Session, tokenPayload: Record<s
         typeof tokenPayload?.app_metadata === 'object' && tokenPayload.app_metadata !== null
             ? normalizeProvider((tokenPayload.app_metadata as { provider?: unknown }).provider)
             : null;
+
     const accountProviders = [
         ...readProviders(activeSession.user?.app_metadata?.providers),
         ...(
@@ -97,6 +99,7 @@ function resolveBootstrapProvider(activeSession: Session, tokenPayload: Record<s
                 : []
         ),
     ];
+
     const uniqueAccountProviders = Array.from(new Set(accountProviders));
     const oauthAccountProviders = uniqueAccountProviders.filter((provider) => provider !== 'email');
     const hasOAuthSessionToken = !!activeSession.provider_token;
@@ -148,6 +151,36 @@ function resolveBootstrapProvider(activeSession: Session, tokenPayload: Record<s
     };
 }
 
+/*
+ * CHANGE 1:
+ * This function was moved OUTSIDE of useEffect.
+ *
+ * Why:
+ * - bootstrapAuthenticatedUser uses this function inside useEffect.
+ * - retryBootstrap also uses this function outside useEffect.
+ * - If the function is declared inside useEffect, retryBootstrap cannot see it.
+ */
+async function runBootstrapWithRetry(payload?: BootstrapProfilePayload) {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= BOOTSTRAP_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+            await createProfile(payload);
+            return;
+        } catch (error) {
+            lastError = error;
+
+            if (attempt === BOOTSTRAP_RETRY_DELAYS_MS.length) {
+                throw error;
+            }
+
+            await sleep(BOOTSTRAP_RETRY_DELAYS_MS[attempt]);
+        }
+    }
+
+    throw lastError;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
@@ -156,27 +189,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const bootstrappedTokenRef = useRef<string | null>(null);
 
     useEffect(() => {
-        async function runBootstrapWithRetry(payload?: BootstrapProfilePayload) {
-            let lastError: unknown;
-
-            for (let attempt = 0; attempt <= BOOTSTRAP_RETRY_DELAYS_MS.length; attempt += 1) {
-                try {
-                    await createProfile(payload);
-                    return;
-                } catch (error) {
-                    lastError = error;
-
-                    if (attempt === BOOTSTRAP_RETRY_DELAYS_MS.length) {
-                        throw error;
-                    }
-
-                    await sleep(BOOTSTRAP_RETRY_DELAYS_MS[attempt]);
-                }
-            }
-
-            throw lastError;
-        }
-
+        /*
+         * CHANGE 2:
+         * runBootstrapWithRetry is no longer declared in here.
+         * useEffect now starts directly with bootstrapAuthenticatedUser.
+         */
         async function bootstrapAuthenticatedUser(activeSession: Session | null) {
             const tokenPayload = activeSession?.access_token
                 ? decodeJwtPayload(activeSession.access_token)
@@ -257,6 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setBootstrapError(null);
 
         const { data: { session: activeSession } } = await supabase.auth.getSession();
+
         setSession(activeSession);
         setUser(activeSession?.user ?? null);
 
@@ -268,9 +286,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const tokenPayload = activeSession.access_token
             ? decodeJwtPayload(activeSession.access_token)
             : null;
+
         const { bootstrapPayload } = resolveBootstrapProvider(activeSession, tokenPayload);
 
         try {
+            /*
+             * CHANGE 3:
+             * retryBootstrap can now call runBootstrapWithRetry
+             * because the function is in the outer file scope.
+             */
             await runBootstrapWithRetry(bootstrapPayload);
             bootstrappedTokenRef.current = activeSession.access_token;
             setBootstrapError(null);
@@ -285,16 +309,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return (
         <AuthContext.Provider
-            value={{ session, user, loading, bootstrapError, signInWithGoogle, signInWithGitHub, signOut, retryBootstrap }}
+            value={{
+                session,
+                user,
+                loading,
+                bootstrapError,
+                signInWithGoogle,
+                signInWithGitHub,
+                signOut,
+                retryBootstrap,
+            }}
         >
             {children}
         </AuthContext.Provider>
     );
 }
 
-// No explicit return type — TypeScript infers AuthContextType after the throw narrows out undefined
 export function useAuth() {
     const ctx = useContext(AuthContext);
-    if (ctx === undefined) throw new Error('useAuth must be used inside AuthProvider');
+
+    if (ctx === undefined) {
+        throw new Error('useAuth must be used inside AuthProvider');
+    }
+
     return ctx;
 }
