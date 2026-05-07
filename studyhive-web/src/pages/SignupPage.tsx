@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import AuthBootstrapSkeleton from '../components/AuthBootstrapSkeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -12,14 +13,7 @@ export default function SignupPage() {
     const [submitting, setSubmitting] = useState(false);
 
     if (session && authLoading) {
-        return (
-            <div className="auth-page">
-                <div className="auth-card">
-                    <h2 className="auth-title">Finishing sign-in...</h2>
-                    <p className="auth-subtitle">We are setting up your StudyHive account.</p>
-                </div>
-            </div>
-        );
+        return <AuthBootstrapSkeleton />;
     }
 
     if (session && !bootstrapError) {
