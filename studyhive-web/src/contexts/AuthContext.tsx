@@ -31,10 +31,6 @@ function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function logAuthDebug(message: string, details?: Record<string, unknown>) {
-    console.log(`[Auth bootstrap] ${message}`, details ?? {});
-}
-
 function decodeJwtPayload(token: string) {
     try {
         const [, payload] = token.split('.');
@@ -165,27 +161,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             for (let attempt = 0; attempt <= BOOTSTRAP_RETRY_DELAYS_MS.length; attempt += 1) {
                 try {
-                    logAuthDebug('Calling POST /api/user bootstrap', {
-                        attempt: attempt + 1,
-                        requestBody: payload ?? null,
-                    });
                     await createProfile(payload);
-                    logAuthDebug('POST /api/user bootstrap succeeded', { attempt: attempt + 1 });
                     return;
                 } catch (error) {
                     lastError = error;
-                    logAuthDebug('POST /api/user bootstrap failed', {
-                        attempt: attempt + 1,
-                        error,
-                    });
 
                     if (attempt === BOOTSTRAP_RETRY_DELAYS_MS.length) {
                         throw error;
                     }
 
-                    logAuthDebug('Waiting before retrying bootstrap', {
-                        retryInMs: BOOTSTRAP_RETRY_DELAYS_MS[attempt],
-                    });
                     await sleep(BOOTSTRAP_RETRY_DELAYS_MS[attempt]);
                 }
             }
@@ -198,29 +182,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ? decodeJwtPayload(activeSession.access_token)
                 : null;
 
-            logAuthDebug('Received auth state change', {
-                hasSession: !!activeSession,
-                userId: activeSession?.user?.id ?? null,
-                email: activeSession?.user?.email ?? null,
-                provider: activeSession?.user?.app_metadata?.provider ?? null,
-                userMetadata: activeSession?.user?.user_metadata ?? null,
-                appMetadata: activeSession?.user?.app_metadata ?? null,
-                tokenClaims: tokenPayload
-                    ? {
-                        sub: tokenPayload.sub ?? null,
-                        email: tokenPayload.email ?? null,
-                        provider: tokenPayload.provider ?? null,
-                        appMetadataProvider:
-                            typeof tokenPayload.app_metadata === 'object' && tokenPayload.app_metadata !== null
-                                ? (tokenPayload.app_metadata as { provider?: unknown }).provider ?? null
-                                : null,
-                        iss: tokenPayload.iss ?? null,
-                        aud: tokenPayload.aud ?? null,
-                        exp: tokenPayload.exp ?? null,
-                    }
-                    : null,
-            });
-
             setSession(activeSession);
             setUser(activeSession?.user ?? null);
 
@@ -232,9 +193,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (bootstrappedTokenRef.current === activeSession.access_token) {
-                logAuthDebug('Skipping bootstrap because token already completed', {
-                    userId: activeSession.user?.id ?? null,
-                });
                 setBootstrapError(null);
                 setLoading(false);
                 return;
@@ -243,23 +201,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(true);
             setBootstrapError(null);
 
-            const { bootstrapPayload, debug } = resolveBootstrapProvider(activeSession, tokenPayload);
-            logAuthDebug('Resolved bootstrap provider', debug);
+            const { bootstrapPayload } = resolveBootstrapProvider(activeSession, tokenPayload);
 
             try {
                 await runBootstrapWithRetry(bootstrapPayload);
                 bootstrappedTokenRef.current = activeSession.access_token;
                 setBootstrapError(null);
                 clearPendingProvider();
-                logAuthDebug('Auth bootstrap finished successfully', {
-                    userId: activeSession.user?.id ?? null,
-                });
             } catch (error) {
                 bootstrappedTokenRef.current = null;
-                logAuthDebug('Auth bootstrap failed after retries', {
-                    userId: activeSession.user?.id ?? null,
-                    error,
-                });
                 setBootstrapError(getApiErrorMessage(error, 'We could not finish signing you in. Please try again.'));
             } finally {
                 setLoading(false);
@@ -305,7 +255,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const retryBootstrap = async () => {
         setLoading(true);
         setBootstrapError(null);
-        logAuthDebug('Manual bootstrap retry requested');
 
         const { data: { session: activeSession } } = await supabase.auth.getSession();
         setSession(activeSession);
@@ -319,23 +268,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const tokenPayload = activeSession.access_token
             ? decodeJwtPayload(activeSession.access_token)
             : null;
-        const { bootstrapPayload, debug } = resolveBootstrapProvider(activeSession, tokenPayload);
-        logAuthDebug('Resolved bootstrap provider for manual retry', debug);
+        const { bootstrapPayload } = resolveBootstrapProvider(activeSession, tokenPayload);
 
         try {
             await runBootstrapWithRetry(bootstrapPayload);
             bootstrappedTokenRef.current = activeSession.access_token;
             setBootstrapError(null);
             clearPendingProvider();
-            logAuthDebug('Manual bootstrap retry succeeded', {
-                userId: activeSession.user?.id ?? null,
-            });
         } catch (error) {
             bootstrappedTokenRef.current = null;
-            logAuthDebug('Manual bootstrap retry failed', {
-                userId: activeSession.user?.id ?? null,
-                error,
-            });
             setBootstrapError(getApiErrorMessage(error, 'We could not finish signing you in. Please try again.'));
         } finally {
             setLoading(false);
